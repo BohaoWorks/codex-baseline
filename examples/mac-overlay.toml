@@ -1,0 +1,5 @@
+# Machine-local template, never applied automatically.
+file_opener = "cursor"
+
+[sandbox_workspace_write]
+writable_roots = ["/synthetic/mac/项目"]

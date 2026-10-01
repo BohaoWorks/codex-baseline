@@ -1,0 +1,4 @@
+file_opener = "vscode"
+
+[sandbox_workspace_write]
+writable_roots = ["C:/synthetic/项目"]

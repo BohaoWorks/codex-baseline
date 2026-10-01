@@ -1,0 +1,14 @@
+# Entirely synthetic. No model is contacted or availability assumed.
+model = "example-model"
+model_reasoning_effort = "high"
+model_reasoning_summary = "auto"
+model_verbosity = "medium"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+check_for_update_on_startup = true
+hide_agent_reasoning = false
+file_opener = "vscode"
+
+[sandbox_workspace_write]
+network_access = false
+writable_roots = ["/synthetic/controller/work"]

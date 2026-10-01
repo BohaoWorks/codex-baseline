@@ -1,0 +1,14 @@
+# Synthetic observed config: reasoning and machine-local settings drifted.
+model = "example-model"
+model_reasoning_effort = "low"
+model_reasoning_summary = "auto"
+model_verbosity = "medium"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+check_for_update_on_startup = true
+hide_agent_reasoning = false
+file_opener = "vscode"
+
+[sandbox_workspace_write]
+network_access = false
+writable_roots = ["/synthetic/other/work"]

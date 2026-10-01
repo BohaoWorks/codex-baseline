@@ -1,0 +1,19 @@
+$ codex-baseline inspect --config examples/shared.toml --codex-version 0.159.3
+accepted=true; portable=9; machine-local=2; blocked=0; unknown=0
+
+$ codex-baseline export --config examples/shared.toml --codex-version 0.159.3 --out TEMP/baseline
+exported 9 portable fields; excluded 2 machine-local fields
+baseline sha256: 30b468b29944692031a43ea3a9e04466b3f1d73383a1305976ea366cb39d93f8
+
+$ codex-baseline render --baseline TEMP/baseline --overlay examples/mac-overlay.toml --out TEMP/review
+rendered 11 fields; 2 came from the overlay
+config.toml + manifest.json created for review; nothing applied
+
+$ codex-baseline compare --baseline TEMP/baseline --overlay examples/mac-overlay.toml --config TEMP/review/config.toml
+matches=true; exit=0
+
+$ codex-baseline compare --baseline TEMP/baseline --overlay examples/mac-overlay.toml --config examples/drifted.toml
+file_opener: changed; source=overlay; machine-local values omitted
+model_reasoning_effort: changed; source=baseline; 'low' -> expected 'high'
+sandbox_workspace_write.writable_roots: changed; source=overlay; machine-local values omitted
+matches=false; exit=1
