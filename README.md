@@ -29,7 +29,7 @@ and a placeholder model; they never contact a model or read your Codex home.
 On Windows, use `py` where the commands below say `python`.
 
 ```sh
-git clone https://github.com/zhengbohao74-lgtm/codex-baseline.git
+git clone https://github.com/BohaoWorks/codex-baseline.git
 cd codex-baseline
 python -m codex_baseline inspect --config examples/shared.toml --codex-version 0.159.3
 python -m codex_baseline export --config examples/shared.toml --codex-version 0.159.3 --out baseline-demo
@@ -136,8 +136,8 @@ skipped when the host does not grant symlink creation; reparse-point rejection i
 also tested independently.
 
 **CI:** [.github/workflows/ci.yml](.github/workflows/ci.yml) runs synthetic tests,
-the demo and installed-package checks on Linux and Windows. Hosted verification
-is pending: check the Actions tab for the result of your exact commit.
+the demo and installed-package checks on Linux and Windows. The [initial published commit passed all four CI jobs](https://github.com/BohaoWorks/codex-baseline/actions/runs/36834795350)
+on 2026-10-01. Check the Actions tab for the result of each later commit.
 See the [CI notes](docs/ci/README.md) for permissions and scope.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for small, evidence-backed contributions

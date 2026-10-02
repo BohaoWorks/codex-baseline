@@ -70,7 +70,7 @@ python -m pip wheel --no-deps --wheel-dir dist .
 
 测试全部使用合成数据。CI 工作流位于 `.github/workflows/ci.yml`，
 覆盖 Linux、Windows、测试、演示和安装检查；详见 [CI 说明](docs/ci/README.md)。
-托管 CI 验证尚待完成，请在 Actions 页面核对对应提交的实际结果。版本更新需重新核对官方 schema、字段范围和安全测试，
+初始发布提交已于 2026-10-01 [通过全部 4 个 CI 检查](https://github.com/BohaoWorks/codex-baseline/actions/runs/36834795350)；后续提交请在 Actions 页面核对各自结果。版本更新需重新核对官方 schema、字段范围和安全测试，
 不能仅扩大版本号范围。详见 [贡献说明](CONTRIBUTING.md)。
 
 需求依据：[多机器基线](https://github.com/openai/codex/issues/26691)、
