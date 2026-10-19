@@ -29,3 +29,29 @@ was verified successful for commit `66a8c325caab692ca6ca74552154433725f82887`:
 all four Linux/Windows and Python 3.11/3.14 jobs passed. This result applies
 only to that commit; later commits need their own checks.
 No runtime model compatibility or effective Codex layered configuration was tested.
+
+## Rendered-size regression — 2026-10-19
+
+Verified locally on Linux with Python 3.12.14 and setuptools 84.0.0, using only
+synthetic inputs. This section does not claim a hosted CI result for the change.
+
+- Reproduced a valid 256,492-byte overlay containing 64 distinct Windows paths,
+  each 4,003 characters long. With a one-model baseline, backslash escaping
+  produced a 384,514-byte config: `render` succeeded, but `compare` rejected it
+  against the existing 256 KiB read limit.
+- Added regression tests first. The new-output, existing-empty-output and
+  262,145-byte cases failed before the fix; the 262,144-byte case and ordinary
+  Windows/Unicode round-trip case already passed.
+- Added a serialized-byte-size check before any output-directory creation or
+  file writes. Oversized renders now exit 2 without exposing paths or contents,
+  creating a directory or filling an existing empty one. The read limit is
+  unchanged; an exactly 262,144-byte generated config still compares successfully.
+- `python -B -m unittest discover -s tests -v`: **42 tests passed, zero skips**.
+- `python -B tools/demo.py`: passed, including matching exit 0 and drift exit 1.
+- Built a wheel offline with `python -m pip wheel --no-deps --no-build-isolation
+  --no-index --wheel-dir WHEEL_DIR .` and installed it into a fresh venv with
+  `pip install --no-deps --no-index`.
+- Outside the source checkout, ran the same 42 tests and demo against the
+  installed package; all passed. The installed `codex-baseline --version` and
+  `codex-baseline policy` commands passed. Tool version remains `0.1.0` and the
+  supported policy remains `codex-cli-0.159.3-small-v1`.

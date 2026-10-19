@@ -86,6 +86,12 @@ processing occurs. Machine-local fields belong in the overlay and are omitted
 from export. Compare checks the explicitly supplied file, not Codex's full
 effective configuration after project layers, profiles, policies and CLI flags.
 
+Inputs and generated `config.toml` files are limited to **256 KiB** each.
+Escaping Windows backslashes can make the generated TOML larger than its input.
+If the rendered file would exceed the limit, `render` exits 2 before creating
+the output directory or writing files; an existing empty directory stays empty.
+Reduce the number or length of writable roots and try again.
+
 Exit codes: **0** accepted/matching, **1** valid configuration with drift,
 **2** rejected input or operation. Every report is JSON except concise errors.
 Source versions must be explicitly asserted; the tool cannot discover or verify

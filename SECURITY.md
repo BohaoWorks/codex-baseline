@@ -28,6 +28,9 @@ other reparse points in a file or any ancestor are refused. Hard-linked inputs,
 nonregular inputs and oversized files are refused. A bundle accepts exactly its
 two fixed files; user-supplied manifest names never become output paths. Writes
 use exclusive creation and require a new or empty output directory. The tool
+checks the serialized rendered config against the same 256 KiB input limit before
+creating its output directory or writing any files. This accounts for escaping
+and UTF-8 byte size without increasing the read limit. The tool
 refuses output paths within `.codex`/`.agents`, as well as the exact HOME,
 USERPROFILE root and the entire explicitly configured CODEX_HOME tree. It creates no missing parent directories and
 performs no automatic import. Output files request mode `0600` where supported;

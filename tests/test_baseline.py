@@ -14,7 +14,7 @@ from uuid import uuid4
 
 from codex_baseline.cli import main
 from codex_baseline.core import (
-    BaselineError, checked_path, compare_config, export_baseline, inspect_data,
+    BaselineError, checked_path, compare_config, dump_toml, export_baseline, inspect_data,
     load_baseline, MAX_INPUT_BYTES, parse_config, render_config, validated,
 )
 from codex_baseline.policy import CODEX_VERSION, RULES, valid_value
@@ -122,6 +122,70 @@ writable_roots = ["C:/synthetic/target/项目", "/synthetic/second"]
         output = self.root / "待审核"
         render_config(self.baseline, overlay, output)
         self.assertEqual(compare_config(self.baseline, overlay, output / "config.toml")["differences"], [])
+
+    def test_windows_backslashes_and_unicode_roots_round_trip(self):
+        self.export()
+        roots = [r"C:\synthetic\project", "D:\\团队\\项目"]
+        overlay = self.put("windows.toml", "[sandbox_workspace_write]\nwritable_roots = ["
+                           + ", ".join("'" + root + "'" for root in roots) + "]\n")
+        output = self.root / "windows-review"
+        render_config(self.baseline, overlay, output)
+        self.assertEqual(parse_config(output / "config.toml")["sandbox_workspace_write"]["writable_roots"], roots)
+        self.assertTrue(compare_config(self.baseline, overlay, output / "config.toml")["matches"])
+
+    def test_render_refuses_oversized_generated_config_without_writes(self):
+        self.export()
+        roots = ["C:\\" + "a\\" * 1998 + f"{index:04}" for index in range(64)]
+        overlay = self.put("large-windows.toml", "[sandbox_workspace_write]\nwritable_roots = ["
+                           + ", ".join("'" + root + "'" for root in roots) + "]\n")
+        self.assertLess(overlay.stat().st_size, MAX_INPUT_BYTES)
+        self.assertTrue(inspect_data(parse_config(overlay))["accepted"])
+        for exists in (False, True):
+            with self.subTest(existing_empty_directory=exists):
+                output = self.root / ("existing-review" if exists else "new-review")
+                if exists:
+                    output.mkdir()
+                status, stdout, stderr = self.invoke("render", "--baseline", self.baseline,
+                                                     "--overlay", overlay, "--out", output)
+                self.assertEqual(status, 2)
+                self.assertEqual(stdout, "")
+                self.assertIn("rendered configuration exceeds the 256 KiB limit", stderr)
+                self.assertNotIn(str(self.root), stderr)
+                self.assertNotIn(roots[0], stderr)
+                if exists:
+                    self.assertEqual(list(output.iterdir()), [])
+                else:
+                    self.assertFalse(output.exists())
+
+    def test_render_accepts_exact_byte_limit_and_rejects_one_more_byte(self):
+        self.export()
+        flat, _ = load_baseline(self.baseline)
+        roots = [f"/synthetic/项目/{index:02}/" + "_" * 4000 for index in range(64)]
+        flat[("sandbox_workspace_write", "writable_roots")] = roots
+        remaining = MAX_INPUT_BYTES - len(dump_toml(flat))
+        self.assertGreater(remaining, 0)
+        for index, root in enumerate(roots):
+            padding = min(4096 - len(root), remaining)
+            roots[index] += "_" * padding
+            remaining -= padding
+        self.assertEqual(remaining, 0)
+        for extra in (0, 1):
+            with self.subTest(extra_bytes=extra):
+                roots[-1] += "_" * extra
+                self.assertEqual(len(dump_toml(flat)), MAX_INPUT_BYTES + extra)
+                overlay = self.put("boundary.toml", "[sandbox_workspace_write]\nwritable_roots = ["
+                                   + ", ".join("'" + root + "'" for root in roots) + "]\n")
+                self.assertLess(overlay.stat().st_size, MAX_INPUT_BYTES)
+                self.assertTrue(inspect_data(parse_config(overlay))["accepted"])
+                output = self.root / f"boundary-review-{extra}"
+                if extra:
+                    with self.assertRaisesRegex(BaselineError, "256 KiB"):
+                        render_config(self.baseline, overlay, output)
+                    self.assertFalse(output.exists())
+                else:
+                    render_config(self.baseline, overlay, output)
+                    self.assertEqual((output / "config.toml").stat().st_size, MAX_INPUT_BYTES)
+                    self.assertTrue(compare_config(self.baseline, overlay, output / "config.toml")["matches"])
 
     def test_render_is_deterministic(self):
         self.export()

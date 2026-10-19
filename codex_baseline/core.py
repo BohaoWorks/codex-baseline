@@ -297,6 +297,8 @@ def merged_config(baseline: str | Path, overlay: str | Path | None) -> tuple[dic
 def render_config(baseline: str | Path, overlay: str | Path | None, output: str | Path) -> dict:
     flat, origins, baseline_hash = merged_config(baseline, overlay)
     content = dump_toml(flat)
+    if len(content) > MAX_INPUT_BYTES:
+        raise BaselineError("rendered configuration exceeds the 256 KiB limit")
     manifest = {"format": FORMAT, "kind": "rendered", "tool_version": __version__,
                 "policy_id": POLICY_ID, "codex_version": CODEX_VERSION,
                 "baseline_sha256": baseline_hash, "files": {"config.toml": digest(content)},
