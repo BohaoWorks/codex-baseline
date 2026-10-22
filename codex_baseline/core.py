@@ -86,7 +86,7 @@ def parse_config(raw: str | Path) -> dict:
     data = read_explicit(raw, ".toml")
     try:
         return tomllib.loads(data.decode("utf-8"))
-    except (UnicodeError, tomllib.TOMLDecodeError, RecursionError):
+    except (ValueError, RecursionError):
         raise BaselineError("invalid UTF-8 or TOML; input contents omitted") from None
 
 
@@ -279,7 +279,7 @@ def load_baseline(raw: str | Path) -> tuple[dict, str]:
         raise BaselineError("baseline integrity check failed")
     try:
         data = tomllib.loads(content.decode("utf-8"))
-    except (UnicodeError, tomllib.TOMLDecodeError, RecursionError):
+    except (ValueError, RecursionError):
         raise BaselineError("invalid baseline TOML; contents omitted") from None
     return validated(data, baseline=True), digest(content)
 
