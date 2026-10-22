@@ -94,6 +94,8 @@ Reduce the number or length of writable roots and try again.
 
 Exit codes: **0** accepted/matching, **1** valid configuration with drift,
 **2** rejected input or operation. Every report is JSON except concise errors.
+TOML integers beyond Python's conversion limit are rejected with a concise,
+content-free error and exit code **2**, including in baseline bundles.
 Source versions must be explicitly asserted; the tool cannot discover or verify
 your installed Codex version. A model identifier passing the subset validator
 does not establish that a model or reasoning level is available to your account.
