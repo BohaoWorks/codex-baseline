@@ -86,7 +86,7 @@ def parse_config(raw: str | Path) -> dict:
     data = read_explicit(raw, ".toml")
     try:
         return tomllib.loads(data.decode("utf-8"))
-    except (UnicodeError, tomllib.TOMLDecodeError, RecursionError):
+    except (ValueError, RecursionError):
         raise BaselineError("invalid UTF-8 or TOML; input contents omitted") from None
 
 
@@ -279,7 +279,7 @@ def load_baseline(raw: str | Path) -> tuple[dict, str]:
         raise BaselineError("baseline integrity check failed")
     try:
         data = tomllib.loads(content.decode("utf-8"))
-    except (UnicodeError, tomllib.TOMLDecodeError, RecursionError):
+    except (ValueError, RecursionError):
         raise BaselineError("invalid baseline TOML; contents omitted") from None
     return validated(data, baseline=True), digest(content)
 
@@ -297,6 +297,8 @@ def merged_config(baseline: str | Path, overlay: str | Path | None) -> tuple[dic
 def render_config(baseline: str | Path, overlay: str | Path | None, output: str | Path) -> dict:
     flat, origins, baseline_hash = merged_config(baseline, overlay)
     content = dump_toml(flat)
+    if len(content) > MAX_INPUT_BYTES:
+        raise BaselineError("rendered configuration exceeds the 256 KiB limit")
     manifest = {"format": FORMAT, "kind": "rendered", "tool_version": __version__,
                 "policy_id": POLICY_ID, "codex_version": CODEX_VERSION,
                 "baseline_sha256": baseline_hash, "files": {"config.toml": digest(content)},
