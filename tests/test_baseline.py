@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 import shutil
 import stat
+import subprocess
+import sys
 import tomllib
 from types import SimpleNamespace
 import unittest
@@ -290,6 +292,47 @@ writable_roots = ["C:/synthetic/target/项目", "/synthetic/second"]
             status, output, error = self.invoke("inspect", "--config", self.root / "missing.toml", "--codex-version", version)
             self.assertEqual(status, 2)
             self.assertNotIn("PRIVATE-MARKER", output + error)
+
+    def assert_long_integer_refused(self, *args):
+        # Pin only the child process's supported Python 3.11+ conversion limit.
+        # Never change the test runner's global integer-conversion setting.
+        environment = dict(os.environ, PYTHONINTMAXSTRDIGITS="4300")
+        result = subprocess.run(
+            [sys.executable, "-m", "codex_baseline", *map(str, args)],
+            capture_output=True, text=True, env=environment, check=False,
+        )
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("contents omitted", result.stderr)
+        for omitted in ("Traceback", "PRIVATE-PARSER-MARKER", str(self.root), "9" * 100):
+            self.assertNotIn(omitted, result.stderr)
+
+    def test_long_integer_input_is_rejected_without_traceback_or_writes(self):
+        self.export()
+        config = self.put("long-integer.toml", '# PRIVATE-PARSER-MARKER\nmodel = ' + "9" * 5000 + "\n")
+        output = self.root / "rejected-output"
+        cases = (
+            ("inspect", "--config", config, "--codex-version", CODEX_VERSION),
+            ("export", "--config", config, "--codex-version", CODEX_VERSION, "--out", output),
+            ("render", "--baseline", self.baseline, "--overlay", config, "--out", output),
+            ("compare", "--baseline", self.baseline, "--config", config),
+        )
+        for args in cases:
+            with self.subTest(command=args[0]):
+                self.assert_long_integer_refused(*args)
+                self.assertFalse(output.exists())
+
+    def test_long_integer_baseline_is_rejected_without_traceback_or_writes(self):
+        self.export()
+        content = ('# PRIVATE-PARSER-MARKER\nmodel = ' + "9" * 5000 + "\n").encode()
+        (self.baseline / "baseline.toml").write_bytes(content)
+        manifest_path = self.baseline / "manifest.json"
+        manifest = json.loads(manifest_path.read_bytes())
+        manifest["files"]["baseline.toml"] = sha256(content).hexdigest()
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        output = self.root / "rejected-output"
+        self.assert_long_integer_refused("render", "--baseline", self.baseline, "--out", output)
+        self.assertFalse(output.exists())
 
     def test_strict_values_and_boolean_types(self):
         for key, value in [(('hide_agent_reasoning',), 1), (('sandbox_mode',), "anything"), (('approval_policy',), "untrusted"), (('approval_policy',), {"granular": {"rules": True}}), (('model',), "https://example.invalid"), (('file_opener',), "custom")]:
