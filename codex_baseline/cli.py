@@ -6,17 +6,24 @@ import sys
 
 from . import __version__
 from .core import BaselineError, check_version, compare_config, export_baseline, inspect_data, parse_config, render_config
-from .policy import BLOCKED, CODEX_VERSION, POLICY_ID, REFERENCE, RULES, SCHEMA_BLOB, SCHEMA_COMMIT, SCHEMA_URL
+from .policy import BLOCKED, CODEX_VERSION, POLICIES, REFERENCE, RULES
+
+
+class _ArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        # argparse diagnostics can echo unknown arguments, including private paths.
+        raise BaselineError("invalid command-line arguments; run --help; argument contents omitted")
 
 
 def parser() -> argparse.ArgumentParser:
-    root = argparse.ArgumentParser(prog="codex-baseline", description="Offline Codex baseline compiler. Writes only to an explicit empty output directory.")
+    root = _ArgumentParser(prog="codex-baseline", description="Offline Codex baseline compiler. Writes only to an explicit empty output directory.")
     root.add_argument("--version", action="version", version=__version__)
     commands = root.add_subparsers(dest="command", required=True)
-    commands.add_parser("policy", help="show the pinned, deliberately small allowlist")
+    policy = commands.add_parser("policy", help="show a pinned, deliberately small allowlist")
+    policy.add_argument("--codex-version", default=CODEX_VERSION, help="explicit policy selection; default: " + CODEX_VERSION)
     inspect = commands.add_parser("inspect", help="classify fields without printing values or unknown names")
     inspect.add_argument("--config", required=True)
-    inspect.add_argument("--codex-version", required=True, help=f"explicit compatibility assertion; supported: {CODEX_VERSION}")
+    inspect.add_argument("--codex-version", required=True, help="explicit compatibility assertion; supported: " + ", ".join(POLICIES))
     export = commands.add_parser("export", help="export portable fields and their integrity manifest")
     export.add_argument("--config", required=True)
     export.add_argument("--codex-version", required=True)
@@ -30,19 +37,20 @@ def parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = parser().parse_args(argv)
     try:
+        args = parser().parse_args(argv)
         status = 0
         if args.command == "policy":
-            result = {"tool_version": __version__, "policy_id": POLICY_ID, "codex_version": CODEX_VERSION,
-                      "documentation": REFERENCE, "schema_url": SCHEMA_URL,
-                      "schema_commit": SCHEMA_COMMIT, "schema_blob": SCHEMA_BLOB,
+            policy = check_version(args.codex_version)
+            result = {"tool_version": __version__, "policy_id": policy.policy_id, "codex_version": policy.codex_version,
+                      "documentation": REFERENCE, "schema_url": policy.schema_url,
+                      "schema_commit": policy.schema_commit, "schema_blob": policy.schema_blob,
                       "fields": [{"field": ".".join(key), "category": rule.category, "kind": rule.kind,
                                   "choices": list(rule.choices), "reason": rule.reason}
                                  for key, rule in sorted(RULES.items())], "blocked": BLOCKED}
         elif args.command == "inspect":
             check_version(args.codex_version)
-            result = inspect_data(parse_config(args.config))
+            result = inspect_data(parse_config(args.config), version=args.codex_version)
             del result["_flat"]
             status = 0 if result["accepted"] else 2
         elif args.command == "export":
