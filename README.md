@@ -6,7 +6,8 @@
 
 One reviewed TOML baseline, one local overlay, and an explainable drift report.
 Python 3.11+, zero runtime dependencies, no account or API key required.
-Version **0.1.0** supports a reviewed subset of **Codex CLI 0.159.3** only.
+The current source supports the same reviewed subset of **Codex CLI 0.159.3 and
+0.166.0 and 0.167.0**, with a separate pinned policy for each exact version.
 This is an independent project, unaffiliated with OpenAI.
 
 ```text
@@ -96,6 +97,16 @@ Exit codes: **0** accepted/matching, **1** valid configuration with drift,
 **2** rejected input or operation. Every report is JSON except concise errors.
 TOML integers beyond Python's conversion limit are rejected with a concise,
 content-free error and exit code **2**, including in baseline bundles.
+Command-line syntax errors also exit **2** without echoing supplied arguments or
+paths. Use `--help` (or `inspect --help`, `export --help`, etc.) for syntax, and
+quote paths containing spaces. Help and version requests still exit **0**.
+Use `--codex-version 0.166.0` with `inspect` or `export` for that reviewed
+version, or `policy --codex-version 0.166.0` to inspect its pinned evidence.
+`policy` without an option keeps the original 0.159.3 default. `render` and
+`compare` take the version from the verified baseline bundle. Old 0.159.3
+bundles stay readable and byte-identical; unknown versions and mixed
+version/policy/schema-commit tuples are refused. No automatic migration occurs.
+
 Source versions must be explicitly asserted; the tool cannot discover or verify
 your installed Codex version. A model identifier passing the subset validator
 does not establish that a model or reasoning level is available to your account.
@@ -118,8 +129,12 @@ with Codex, so review the generated file before any later application.
 Manifests contain no input paths, original content hashes, timestamps or machine
 identifiers. Identical supported inputs produce byte-identical bundles. SHA-256
 detects accidental changes; it is **not** a signature or proof of provenance.
-The policy is pinned to [Codex 0.159.3's official schema](https://github.com/openai/codex/blob/01fc69f4026735edfdf6789820549727a4867b11/codex-rs/core/config.schema.json)
+The original policy is pinned to [Codex 0.159.3's official schema](https://github.com/openai/codex/blob/01fc69f4026735edfdf6789820549727a4867b11/codex-rs/core/config.schema.json)
 and checked against the [official configuration reference](https://developers.openai.com/codex/config-reference/).
+The [0.166.0 compatibility notes](docs/compatibility-0.166.0.md) pin that policy's
+schema and source review. Summary preferences may be suppressed by provider/model
+capabilities. Resuming a session may restore qualifying filesystem/network permission profiles;
+matching explicit files does not prove the effective sandbox or approval state.
 
 ## Why this exists
 
@@ -153,3 +168,10 @@ and [CHANGELOG.md](CHANGELOG.md) for releases. Open a minimal reproducible issue
 using synthetic inputs. Do not upload your real configuration or credentials.
 
 MIT licensed. No telemetry, paid services, API calls or runtime subscriptions.
+
+### 0.167.0 explicit-file compatibility
+
+Use `--codex-version 0.167.0` for inspect/export/policy. The same narrow rules
+apply, with a separate pinned policy. [Source review](docs/compatibility-0.167.0.md)
+explains managed-network changes. Matching files do not establish effective
+permissions or runtime equivalence. No configuration is automatically applied.
