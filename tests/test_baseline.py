@@ -543,6 +543,53 @@ writable_roots = ["C:/synthetic/target/项目", "/synthetic/second"]
         with self.assertRaises(BaselineError):
             export_baseline(config, CODEX_VERSION, self.baseline)
 
+    def test_cli_argument_errors_do_not_echo_private_arguments(self):
+        marker = "PRIVATE-CLI-MARKER"
+        output = self.root / "must-not-be-created"
+        cases = [
+            [marker],
+            ["policy", "--" + marker],
+            ["inspect", "--config", "/synthetic/input", marker + ".toml",
+             "--codex-version", CODEX_VERSION],
+            ["inspect", "--" + marker],
+            ["export", "--config", self.config, "--codex-version", CODEX_VERSION,
+             "--out", output, "--" + marker],
+        ]
+        for args in cases:
+            with self.subTest(args=args):
+                result = subprocess.run(
+                    [sys.executable, "-m", "codex_baseline", *map(str, args)],
+                    capture_output=True, text=True, check=False,
+                )
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(result.stdout, "")
+                self.assertNotIn(marker, result.stderr)
+                self.assertNotIn(str(self.root), result.stderr)
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertIn("--help", result.stderr)
+                self.assertFalse(output.exists())
+
+    def test_cli_missing_arguments_are_rejected_and_help_remains_available(self):
+        for args in ([], ["inspect"], ["render", "--baseline"]):
+            with self.subTest(args=args):
+                result = subprocess.run(
+                    [sys.executable, "-m", "codex_baseline", *args],
+                    capture_output=True, text=True, check=False,
+                )
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(result.stdout, "")
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertIn("--help", result.stderr)
+        for args in (["--help"], ["inspect", "--help"], ["--version"]):
+            with self.subTest(args=args):
+                result = subprocess.run(
+                    [sys.executable, "-m", "codex_baseline", *args],
+                    capture_output=True, text=True, check=False,
+                )
+                self.assertEqual(result.returncode, 0)
+                self.assertTrue(result.stdout)
+                self.assertEqual(result.stderr, "")
+
     def test_policy_lists_pinned_sources(self):
         status, output, _ = self.invoke("policy")
         data = json.loads(output)
