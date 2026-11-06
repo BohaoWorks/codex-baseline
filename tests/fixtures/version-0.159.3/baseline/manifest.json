@@ -1,0 +1,11 @@
+{
+  "codex_version": "0.159.3",
+  "files": {
+    "baseline.toml": "6791f6fc81e13c79df5a36cf8456a7ef91ad2aa8f046c9cb365a54a986ad61e3"
+  },
+  "format": "codex-baseline/1",
+  "kind": "baseline",
+  "policy_id": "codex-cli-0.159.3-small-v1",
+  "schema_commit": "01fc69f4026735edfdf6789820549727a4867b11",
+  "tool_version": "0.1.0"
+}
