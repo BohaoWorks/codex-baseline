@@ -3,3 +3,4 @@ recursive-include docs *.md *.txt *.yml
 recursive-include examples *.toml
 recursive-include tests *.py
 recursive-include tools *.py
+recursive-include tests/fixtures *.toml *.json
