@@ -5,7 +5,8 @@
 
 [English](README.md) · [真实终端演示](docs/demo.txt) · [支持字段](docs/scope.md) · [安全边界](SECURITY.md)
 
-首版 **0.1.0** 只支持 **Codex CLI 0.159.3** 的明确小范围字段。
+当前源码支持 **Codex CLI 0.159.3、0.166.0 和 0.167.0** 的同一小范围字段，
+三个精确版本各有独立固定策略。
 这是独立项目，不隶属于 OpenAI；不是整个 Codex 目录的备份或搬家工具。
 
 ## 直接试用
@@ -32,7 +33,7 @@ python -m codex_baseline compare --baseline baseline-demo --overlay examples/mac
 - `export` 检查完整输入，只导出便于共享的设置与哈希清单。
 - `render` 将基线和显式指定的机器差异合并，输出供人工审核的 `config.toml`。
 - `compare` 比对显式指定的配置文件，解释新增、缺失和改变的字段。
-- `policy` 查看支持范围、版本和官方依据。
+- `policy` 查看默认 0.159.3 的范围与依据；`policy --codex-version 0.166.0` 查看新版本策略。
 
 机器差异中的已给出字段优先，数组整体替换，不会合并路径或默默添加默认设置。
 支持 12 个共享字段和 2 个机器本地字段，准确范围见 [字段表](docs/scope.md)。
@@ -45,6 +46,13 @@ python -m codex_baseline compare --baseline baseline-demo --overlay examples/mac
 
 退出码：`0` 表示成功或一致，`1` 表示发现偏离，`2` 表示拒绝输入或操作失败。
 TOML 整数超过 Python 转换限制时（包括基线包内），返回不含输入内容的简短错误和退出码 `2`。
+命令行参数错误也返回 `2`，不回显传入的参数或路径。可用 `--help` 或
+`inspect --help`、`export --help` 等查看用法；含空格的路径请加引号。
+帮助和版本查询仍以 `0` 退出。
+对 0.166.0 输入，在 `inspect`、`export` 中明确填写 `--codex-version 0.166.0`。
+`render`、`compare` 从核验通过的基线包继承版本。旧 0.159.3 包保持可读、生成字节不变；
+未知版本与版本/策略/schema 提交不匹配的清单仍拒绝，不自动迁移。
+
 输入版本由调用者明确声明，不会探测本机 Codex 版本；模型与推理等级是否可用也不会联网检查。
 `compare` 只比较你指定的文件，不解析项目层、profiles、管理员规则或命令行覆盖后的最终配置。
 
@@ -85,3 +93,16 @@ python -m pip wheel --no-deps --wheel-dir dist .
 及 [0.159.3 固定版本 schema](https://github.com/openai/codex/blob/01fc69f4026735edfdf6789820549727a4867b11/codex-rs/core/config.schema.json)。
 
 MIT 许可证；没有付费服务、遥测或 API 费用。
+
+### 0.166.0 的运行边界
+
+[兼容研究说明](docs/compatibility-0.166.0.md) 记录了固定 schema 和官方源码依据。
+这里支持的是显式配置文件的编译与比较，不是保证 Codex 实际运行效果一致。
+推理摘要偏好可能受模型或服务商能力限制；恢复会话可能恢复符合条件的文件系统/网络权限配置，这不表示新增了审批策略恢复。
+因此配置文件相同不代表最终生效的沙盒或审批状态相同。工具不会启动 Codex 或应用配置。
+
+### 0.167.0 显式文件兼容
+
+inspect/export/policy 可指定 `--codex-version 0.167.0`。仍使用原有窄范围规则，
+独立固定版本策略。[源码说明](docs/compatibility-0.167.0.md)记录托管网络策略变化。
+文件匹配不证明最终生效权限或运行行为等价，工具不会自动应用配置。
