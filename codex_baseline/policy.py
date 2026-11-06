@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from pathlib import PurePosixPath, PureWindowsPath
+from types import MappingProxyType
 import re
 
 CODEX_VERSION = "0.159.3"
@@ -13,6 +14,33 @@ SCHEMA_URL = (
     "https://github.com/openai/codex/blob/" + SCHEMA_COMMIT
     + "/codex-rs/core/config.schema.json"
 )
+
+
+@dataclass(frozen=True)
+class CompatibilityPolicy:
+    codex_version: str
+    policy_id: str
+    schema_commit: str
+    schema_blob: str
+
+    @property
+    def schema_url(self) -> str:
+        return "https://github.com/openai/codex/blob/" + self.schema_commit + "/codex-rs/core/config.schema.json"
+
+
+# Keep the original constants/default policy and old bundle bytes stable.
+# These source-reviewed versions share exactly the same narrow field rules.
+POLICIES = MappingProxyType({
+    CODEX_VERSION: CompatibilityPolicy(CODEX_VERSION, POLICY_ID, SCHEMA_COMMIT, SCHEMA_BLOB),
+    "0.166.0": CompatibilityPolicy(
+        "0.166.0", "codex-cli-0.166.0-small-v1",
+        "6ff1e1ca3b30fc8b914720681fcf5fe62e95f856", "0e741b619f29ca531575accba1a2d6d18ebc7403",
+    ),
+    "0.167.0": CompatibilityPolicy(
+        "0.167.0", "codex-cli-0.167.0-small-v1",
+        "086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a", "f5149c6efdf7ab9f1550aa0639dd5f2401205f25",
+    ),
+})
 
 
 @dataclass(frozen=True)
