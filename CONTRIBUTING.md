@@ -11,11 +11,15 @@ automatic home scanning or automatic imports to this release's boundary.
 
 Before a pull request, run `python -m unittest discover -s tests -v`,
 `python tools/demo.py`, and build/install a wheel in an isolated environment.
+After installing, run `python -B tools/check_installed.py` with that same
+interpreter. It stages the tests away from the package source and verifies that
+they import the installed distribution, not the checkout or an editable install.
+It does not install dependencies or use the network.
 Update both READMEs when the user contract changes. Keep demo output truthful
 and keep host paths, credentials, generated packages and build folders out of Git.
 
 Suggested maintenance: review incoming issues and upstream configuration changes
 weekly when a maintainer is available. Version support is explicit; continue
-rejecting unreviewed versions. Activate the documented CI template only with
-authorized workflow-write access, then verify the run's commit equals HEAD.
+rejecting unreviewed versions. The active CI runs these source and installed-package checks. Keep its reference
+copy in `docs/ci/ci.yml` synchronized and verify the run's commit equals HEAD.
 There is no background service or unattended maintenance process installed.
