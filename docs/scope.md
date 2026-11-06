@@ -1,6 +1,16 @@
 # Versioned subset
 
-Tool: `0.1.0`; policy: `codex-cli-0.159.3-small-v1`; source version: `0.159.3`.
+Tool: `0.1.0` (unreleased compatibility update).
+
+- Original/default policy: `codex-cli-0.159.3-small-v1`, exact source version `0.159.3`.
+- Additional policy: `codex-cli-0.166.0-small-v1`, exact source version `0.166.0`.
+- Additional policy: `codex-cli-0.167.0-small-v1`, exact source version `0.167.0`.
+  See [0.167.0 source review](compatibility-0.167.0.md). No managed requirements
+  are parsed or migrated; network_access is an explicit value, not effective access.
+
+All three policies use the same 14 field rules below. Existing 0.159.3 bundles and
+defaults are preserved. See [the 0.166.0 source review](compatibility-0.166.0.md)
+for its distinct commit/blob evidence and effective-runtime caveats.
 
 Evidence checked on 2026-10-01:
 
