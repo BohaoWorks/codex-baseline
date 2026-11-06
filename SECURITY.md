@@ -19,7 +19,8 @@ can evade them. Review every input and output before sharing. No claim of 100%
 secret detection is made.
 
 Inspection does not print values or unrecognized field names. Parse and IO errors
-omit source text and paths. Drift reports show only validated portable values;
+omit source text and paths. Command-line syntax errors also omit supplied
+arguments, which may include private paths or values. Drift reports show only validated portable values;
 machine-local values are omitted. Baseline metadata does not retain source file
 names, local paths, input hashes, time, usernames or device IDs.
 
