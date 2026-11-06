@@ -10,7 +10,7 @@ import tomllib
 from urllib.parse import parse_qsl, urlsplit
 
 from . import __version__
-from .policy import BLOCKED, CODEX_VERSION, POLICY_ID, RULES, SCHEMA_COMMIT, valid_value
+from .policy import BLOCKED, CODEX_VERSION, CompatibilityPolicy, POLICIES, RULES, valid_value
 
 MAX_INPUT_BYTES = 256 * 1024
 MAX_NODES = 2048
@@ -22,9 +22,10 @@ class BaselineError(Exception):
     """Messages must never contain untrusted contents or filesystem paths."""
 
 
-def check_version(version: str) -> None:
-    if version != CODEX_VERSION:
-        raise BaselineError(f"unsupported Codex version; supported version: {CODEX_VERSION}")
+def check_version(version: str) -> CompatibilityPolicy:
+    if type(version) is not str or version not in POLICIES:
+        raise BaselineError("unsupported Codex version; supported versions: " + ", ".join(POLICIES))
+    return POLICIES[version]
 
 
 def checked_path(raw: str | Path, *, writing: bool = False) -> Path:
@@ -128,7 +129,8 @@ def has_sensitive_material(data: dict) -> bool:
     return walk(data)
 
 
-def inspect_data(data: dict) -> dict:
+def inspect_data(data: dict, *, version: str = CODEX_VERSION) -> dict:
+    policy = check_version(version)
     fields: list[dict] = []
     unknown_count = 0
     invalid_count = 0
@@ -163,7 +165,7 @@ def inspect_data(data: dict) -> dict:
     fields.sort(key=lambda field: field["field"])
     blocked_count = sum(field["category"] == "blocked" for field in fields)
     return {
-        "policy_id": POLICY_ID, "codex_version": CODEX_VERSION,
+        "policy_id": policy.policy_id, "codex_version": policy.codex_version,
         "fields": fields, "unknown_count": unknown_count,
         "invalid_count": invalid_count, "blocked_count": blocked_count,
         "sensitive_material_detected": sensitive,
@@ -229,7 +231,7 @@ def write_bundle(raw: str | Path, files: dict[str, bytes]) -> None:
 
 
 def export_baseline(config: str | Path, version: str, output: str | Path) -> dict:
-    check_version(version)
+    policy = check_version(version)
     flat = validated(parse_config(config))
     portable = {key: value for key, value in flat.items() if RULES[key].category == "portable"}
     if not portable:
@@ -237,16 +239,16 @@ def export_baseline(config: str | Path, version: str, output: str | Path) -> dic
     content = dump_toml(portable)
     manifest = {
         "format": FORMAT, "kind": "baseline", "tool_version": __version__,
-        "policy_id": POLICY_ID, "codex_version": CODEX_VERSION,
-        "schema_commit": SCHEMA_COMMIT, "files": {"baseline.toml": digest(content)},
+        "policy_id": policy.policy_id, "codex_version": policy.codex_version,
+        "schema_commit": policy.schema_commit, "files": {"baseline.toml": digest(content)},
     }
     write_bundle(output, {"baseline.toml": content, "manifest.json": json_bytes(manifest)})
     return {"action": "export", "portable_fields": len(portable),
             "machine_local_fields_excluded": len(flat) - len(portable),
-            "sha256": digest(content), "policy_id": POLICY_ID}
+            "sha256": digest(content), "policy_id": policy.policy_id}
 
 
-def load_baseline(raw: str | Path) -> tuple[dict, str]:
+def _load_baseline(raw: str | Path) -> tuple[dict, str, CompatibilityPolicy]:
     root = checked_path(raw)
     try:
         if not root.is_dir() or {path.name for path in root.iterdir()} != {"baseline.toml", "manifest.json"}:
@@ -267,8 +269,9 @@ def load_baseline(raw: str | Path) -> tuple[dict, str]:
     expected_keys = {"format", "kind", "tool_version", "policy_id", "codex_version", "schema_commit", "files"}
     if not isinstance(manifest, dict) or set(manifest) != expected_keys:
         raise BaselineError("unknown or missing manifest fields")
+    policy = check_version(manifest["codex_version"])
     expected = {"format": FORMAT, "kind": "baseline", "tool_version": __version__,
-                "policy_id": POLICY_ID, "codex_version": CODEX_VERSION, "schema_commit": SCHEMA_COMMIT}
+                "policy_id": policy.policy_id, "codex_version": policy.codex_version, "schema_commit": policy.schema_commit}
     if any(manifest[key] != value for key, value in expected.items()):
         raise BaselineError("unsupported manifest version or policy")
     files = manifest["files"]
@@ -281,31 +284,41 @@ def load_baseline(raw: str | Path) -> tuple[dict, str]:
         data = tomllib.loads(content.decode("utf-8"))
     except (ValueError, RecursionError):
         raise BaselineError("invalid baseline TOML; contents omitted") from None
-    return validated(data, baseline=True), digest(content)
+    return validated(data, baseline=True), digest(content), policy
 
 
-def merged_config(baseline: str | Path, overlay: str | Path | None) -> tuple[dict, dict, str]:
-    flat, baseline_hash = load_baseline(baseline)
+def load_baseline(raw: str | Path) -> tuple[dict, str]:
+    flat, content_hash, _ = _load_baseline(raw)
+    return flat, content_hash
+
+
+def _merged_config(baseline: str | Path, overlay: str | Path | None) -> tuple[dict, dict, str, CompatibilityPolicy]:
+    flat, baseline_hash, policy = _load_baseline(baseline)
     origins = {key: "baseline" for key in flat}
     if overlay is not None:
         local = validated(parse_config(overlay))
         flat.update(local)
         origins.update({key: "overlay" for key in local})
+    return flat, origins, baseline_hash, policy
+
+
+def merged_config(baseline: str | Path, overlay: str | Path | None) -> tuple[dict, dict, str]:
+    flat, origins, baseline_hash, _ = _merged_config(baseline, overlay)
     return flat, origins, baseline_hash
 
 
 def render_config(baseline: str | Path, overlay: str | Path | None, output: str | Path) -> dict:
-    flat, origins, baseline_hash = merged_config(baseline, overlay)
+    flat, origins, baseline_hash, policy = _merged_config(baseline, overlay)
     content = dump_toml(flat)
     if len(content) > MAX_INPUT_BYTES:
         raise BaselineError("rendered configuration exceeds the 256 KiB limit")
     manifest = {"format": FORMAT, "kind": "rendered", "tool_version": __version__,
-                "policy_id": POLICY_ID, "codex_version": CODEX_VERSION,
+                "policy_id": policy.policy_id, "codex_version": policy.codex_version,
                 "baseline_sha256": baseline_hash, "files": {"config.toml": digest(content)},
                 "origins": {".".join(key): origins[key] for key in sorted(origins)}}
     write_bundle(output, {"config.toml": content, "manifest.json": json_bytes(manifest)})
     return {"action": "render", "fields": len(flat), "overlay_fields": sum(origin == "overlay" for origin in origins.values()),
-            "sha256": digest(content), "policy_id": POLICY_ID}
+            "sha256": digest(content), "policy_id": policy.policy_id}
 
 
 def compare_config(baseline: str | Path, overlay: str | Path | None, config: str | Path) -> dict:
